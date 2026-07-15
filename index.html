@@ -827,8 +827,14 @@
         }
 
         // Check URL param if we should automatically hide controls (useful for OBS)
-        if (window.location.search.includes('obs=true') || (urlToken && urlClientId && urlBroadcasterId)) {
-            hideControls();
+        const isObs = window.location.search.includes('obs=true') || (urlToken && urlClientId && urlBroadcasterId);
+        const isTest = window.location.search.includes('test=true');
+
+        if (isObs) {
+            document.body.classList.add('obs-mode');
+            if (!isTest) {
+                document.getElementById('controlPanel').classList.add('hidden-panel');
+            }
         }
 
     </script>

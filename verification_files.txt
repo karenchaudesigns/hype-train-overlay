@@ -1,0 +1,3 @@
+/home/jules/verification
+/home/jules/verification/screenshots
+/home/jules/verification/videos
