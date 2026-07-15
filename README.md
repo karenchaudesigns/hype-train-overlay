@@ -12,6 +12,9 @@ I am thrilled to share the code for this project so you can build your own custo
 
 You are free to use, share, and adapt my custom assets for your own stream, but you must give clear credit to Karen Chau Designs, LLC and provide a link back to me.
 
+**Copyright and Licensing Attribution:**
+* Copyright (c) 2026 Karen Chau Designs, LLC
+
 **Want to use your own art instead?**
 
 1. Navigate to the /assets directory in your cloned repository.
