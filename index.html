@@ -751,7 +751,6 @@
         // 3. (Boilerplate) Connect to Twitch EventSub WebSockets
         // Note: For GitHub Pages, you connect to the WebSocket, get a Session ID, 
         // and then POST to the Twitch API to subscribe to the events using that Session ID.
-        /*
         let websocket;
         function setupEventSub(token, clientId, broadcasterId) {
             websocket = new WebSocket('wss://eventsub.wss.twitch.tv/websockets');
@@ -762,8 +761,39 @@
                 // 1. Handle Welcome Message & Subscription Request
                 if (message.metadata.message_type === 'session_welcome') {
                     const sessionId = message.payload.session.id;
-                    // TODO: Make fetch() POST to 'https://api.twitch.tv/helix/eventsub/subscriptions'
-                    // Subscribe to 'channel.hype_train.begin', 'channel.hype_train.progress', etc.
+
+                    const eventTypes = [
+                        'channel.hype_train.begin',
+                        'channel.hype_train.progress',
+                        'channel.hype_train.end',
+                        'channel.cheer',
+                        'channel.subscribe',
+                        'channel.subscription.gift'
+                    ];
+
+                    eventTypes.forEach(type => {
+                        fetch('https://api.twitch.tv/helix/eventsub/subscriptions', {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': `Bearer ${token}`,
+                                'Client-Id': clientId,
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                type: type,
+                                version: '1',
+                                condition: {
+                                    broadcaster_user_id: broadcasterId
+                                },
+                                transport: {
+                                    method: 'websocket',
+                                    session_id: sessionId
+                                }
+                            })
+                        }).then(res => res.json())
+                          .then(data => console.log(`Subscribed to ${type}`, data))
+                          .catch(err => console.error(`Error subscribing to ${type}`, err));
+                    });
                 }
                 
                 // 2. Handle Event Notifications
@@ -783,13 +813,21 @@
                 }
             };
         }
-        */
 
         // Run auth check on initialization
         checkTwitchAuth();
 
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlToken = urlParams.get('token');
+        const urlClientId = urlParams.get('clientId') || urlParams.get('client_id');
+        const urlBroadcasterId = urlParams.get('broadcasterId') || urlParams.get('broadcaster_id');
+
+        if (urlToken && urlClientId && urlBroadcasterId) {
+            setupEventSub(urlToken, urlClientId, urlBroadcasterId);
+        }
+
         // Check URL param if we should automatically hide controls (useful for OBS)
-        if (window.location.search.includes('obs=true')) {
+        if (window.location.search.includes('obs=true') || (urlToken && urlClientId && urlBroadcasterId)) {
             hideControls();
         }
 
