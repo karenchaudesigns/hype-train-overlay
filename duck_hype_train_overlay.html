@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Duck Hype Train Overlay</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: transparent; /* Essential for OBS */
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        /* When not in OBS, give a dark background to see the UI */
+        body:not(.obs-mode) {
+            background-color: #18181b; 
+            background-image: radial-gradient(#3f3f46 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        #gameCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 10;
+            pointer-events: none; /* Let clicks pass through to underneath layers */
+        }
+
+        #controlPanel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 20;
+            background: rgba(24, 24, 27, 0.95);
+            border: 1px solid #3f3f46;
+            border-radius: 12px;
+            padding: 20px;
+            width: 350px;
+            color: white;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+
+        .hidden-panel {
+            opacity: 0;
+            transform: scale(0.95);
+            pointer-events: none;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 8px 12px;
+            margin-bottom: 8px;
+            border-radius: 6px;
+            font-weight: bold;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        .btn-primary { background: #9146FF; color: white; }
+        .btn-primary:hover { background: #772ce8; }
+        .btn-secondary { background: #3f3f46; color: white; }
+        .btn-secondary:hover { background: #52525b; }
+        .btn-danger { background: #ef4444; color: white; }
+        .btn-danger:hover { background: #dc2626; }
+    </style>
+</head>
+<body>
+
+    <!-- The Game Canvas -->
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- Control Panel (Hide in OBS) -->
+    <div id="controlPanel">
+        <div class="flex justify-between items-center mb-4">
+            <h1 class="text-xl font-bold text-white flex items-center gap-2">🦆 Hype Train Setup</h1>
+            <span id="statusBadge" class="bg-red-500 text-xs px-2 py-1 rounded-full">Offline</span>
+        </div>
+
+        <p class="text-sm text-gray-400 mb-4">
+            Test your overlay here. Once ready, copy this page's URL into an OBS Browser Source.
+        </p>
+
+        <div class="mb-6 p-3 bg-gray-800 rounded-lg border border-gray-700">
+            <h2 class="text-sm font-bold text-gray-300 mb-2 uppercase tracking-wider">Simulator</h2>
+            <button onclick="startHypeTrain()" class="btn btn-primary">🚂 Start Hype Train (Lvl 1)</button>
+            <div class="grid grid-cols-2 gap-2">
+                <button onclick="spawnFood('sub')" class="btn btn-secondary text-sm">⭐️ Spawn Sub</button>
+                <button onclick="spawnFood('gift')" class="btn btn-secondary text-sm">🎁 Spawn Gift</button>
+                <button onclick="spawnFood('bits')" class="btn btn-secondary text-sm">💎 Spawn Bits</button>
+                <button onclick="levelUpTrain()" class="btn btn-secondary text-sm">⬆️ Level Up (+1 Duck)</button>
+            </div>
+            <button onclick="endHypeTrain()" class="btn btn-danger mt-2">🛑 End Hype Train</button>
+        </div>
+
+        <div class="mb-4">
+            <h2 class="text-sm font-bold text-gray-300 mb-2 uppercase tracking-wider">Twitch Auth (GitHub Pages)</h2>
+            <input type="text" id="clientIdInput" placeholder="Enter Twitch Client ID" class="w-full bg-gray-900 border border-gray-700 rounded p-2 mb-2 text-sm text-white focus:outline-none focus:border-purple-500">
+            <button onclick="authenticateTwitch()" class="btn btn-primary flex justify-center items-center gap-2">
+                <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714Z"/></svg>
+                Connect to Twitch
+            </button>
+            <p class="text-xs text-gray-500 mt-1">Uses Implicit Grant flow. Safe for GitHub Pages.</p>
+        </div>
+
+        <button onclick="hideControls()" class="w-full text-xs text-gray-400 hover:text-white mt-2 underline">Hide Controls (OBS Mode)</button>
+    </div>
+
+    <script>
+        /** ==========================================
+         * GAME ENGINE & LOGIC (HTML5 Canvas)
+         * ========================================== */
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        let tileSize = 48; // Size of the grid squares
+        let cols, rows;
+        let lastTick = 0;
+        let tickRate = 400; // Slower tick rate for smoother, slower continuous movement (was 250)
+        
+        // Game State
+        let gameState = 'idle'; // 'idle', 'active', 'finishing', 'leaving'
+        let hypeLevel = 0;
+        let duckTrain = []; // Array of {x, y, dir} objects
+        let foods = []; // Array of {x, y, type} objects
+        let particles = [];
+        let bubbles = []; // Array of speech bubbles {px, py, text, life, maxLife}
+        
+        // Escape Mechanic Globals
+        let totalTicks = 0;
+        let reversalHistory = [];
+        let lastSpeechTime = 0; // Cooldown timer for speech bubbles
+
+        // Directions
+        let currentDir = { x: 1, y: 0 };
+        
+        // Emojis for assets (Keeps it single-file without external images)
+        const ASSETS = {
+            sub: '⭐️',
+            gift: '🎁',
+            bits: '💎'
+        };
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            cols = Math.floor(canvas.width / tileSize);
+            rows = Math.floor(canvas.height / tileSize);
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        function startHypeTrain() {
+            if (gameState === 'active' || gameState === 'finishing') return;
+            gameState = 'active';
+            hypeLevel = 1;
+            lastTick = 0; // reset animation timing
+            bubbles = []; // clear old bubbles
+            totalTicks = 0;
+            reversalHistory = [];
+            lastSpeechTime = 0;
+            
+            // Make any existing foods targetable again for this new train
+            foods.forEach(f => f.targetable = true);
+
+            // Initialize with two points so the interpolation logic has a history to render from
+            duckTrain = [
+                { x: 0, y: Math.floor(rows / 2), dir: { x: 1, y: 0 } }, // target position
+                { x: -1, y: Math.floor(rows / 2), dir: { x: 1, y: 0 } } // starting position
+            ];
+            currentDir = { x: 1, y: 0 };
+            
+            document.getElementById('statusBadge').innerText = 'Hype Train Active';
+            document.getElementById('statusBadge').className = 'bg-green-500 text-xs px-2 py-1 rounded-full';
+        }
+
+        function endHypeTrain() {
+            if (gameState !== 'active') return;
+            gameState = 'finishing'; // Enter the wrap-up state to clean up remaining targetable foods
+            document.getElementById('statusBadge').innerText = 'Finishing Up';
+            document.getElementById('statusBadge').className = 'bg-yellow-500 text-xs px-2 py-1 rounded-full';
+
+            // Drop a thank you message when the hype train concludes
+            if (duckTrain.length > 0) {
+                let head = duckTrain[0];
+                bubbles.push({
+                    px: head.x * tileSize + tileSize / 2,
+                    py: head.y * tileSize, // spawn near the top of the duck
+                    text: "Thanks for all the hype, chat!",
+                    life: 0,
+                    maxLife: 12.0, // Last twice as long (standard is 6.0)
+                    scale: 2.0 // Make it twice as large
+                });
+            }
+        }
+
+        function levelUpTrain() {
+            if (gameState !== 'active') return;
+            hypeLevel++;
+            // The tail logic handles visual growth dynamically based on hypeLevel
+            spawnParticles(duckTrain[0].x * tileSize, duckTrain[0].y * tileSize, '🎉');
+        }
+
+        function spawnFood(type) {
+            let x, y;
+            let isOccupied = true;
+            let attempts = 0;
+            const maxAttempts = 50; // Prevent infinite loops if screen is completely full
+
+            // Find an unoccupied grid spot for the food
+            while (isOccupied && attempts < maxAttempts) {
+                // Ensure food doesn't spawn on the edges
+                x = Math.floor(Math.random() * (cols - 4)) + 2;
+                y = Math.floor(Math.random() * (rows - 4)) + 2;
+                
+                // Check if another food item or a duck is already at these coordinates
+                let foodOccupied = foods.some(f => f.x === x && f.y === y);
+                let duckOccupied = duckTrain.some(d => d.x === x && d.y === y);
+                isOccupied = foodOccupied || duckOccupied;
+                
+                attempts++;
+            }
+
+            if (!isOccupied) {
+                // Fruits spawned during 'finishing' or 'leaving' are not actively targeted by the CURRENT train
+                let isTargetable = (gameState === 'idle' || gameState === 'active');
+                foods.push({ x, y, type, life: 0, spawnTime: Date.now(), targetable: isTargetable });
+            }
+        }
+
+        function spawnParticles(x, y, emoji) {
+            for(let i=0; i<5; i++) {
+                particles.push({
+                    x: x + tileSize/2,
+                    y: y + tileSize/2,
+                    vx: (Math.random() - 0.5) * 10,
+                    vy: (Math.random() - 0.5) * 10,
+                    life: 1.0,
+                    emoji: emoji
+                });
+            }
+        }
+
+        // Helper to find valid 90-degree turns that don't hit the screen boundaries or the train's body
+        function getSafeDirections(head, currentDir) {
+            const dirs = [
+                {x: 1, y: 0}, {x: -1, y: 0}, {x: 0, y: 1}, {x: 0, y: -1}
+            ];
+            // Prevent 180 reversing
+            const valid = dirs.filter(d => !(d.x === -currentDir.x && d.y === -currentDir.y));
+            // Prevent hitting walls (leaves a 1-tile margin) and itself
+            return valid.filter(d => {
+                let nx = head.x + d.x;
+                let ny = head.y + d.y;
+                
+                // 1. Check boundary collision
+                if (nx < 1 || nx > cols - 2 || ny < 1 || ny > rows - 2) return false;
+                
+                // 2. Check self collision (avoid hitting its own body)
+                // We check up to length - 1 because the tail will move forward out of that spot on the next tick
+                for (let i = 0; i < duckTrain.length - 1; i++) {
+                    if (duckTrain[i].x === nx && duckTrain[i].y === ny) {
+                        return false;
+                    }
+                }
+                
+                return true;
+            });
+        }
+
+        // Smart Pathfinding (Predictive Turning)
+        function getNextMove(head) {
+            let safeDirs = getSafeDirections(head, currentDir);
+            
+            if (safeDirs.length === 0) {
+                // Completely trapped? Signal to reverse the whole train
+                return { reverseTrain: true };
+            }
+
+            let bestDir = safeDirs[0];
+            let targetFoods = foods.filter(f => f.targetable);
+
+            if (targetFoods.length > 0) {
+                // Find closest food among the targeted ones
+                let closest = null;
+                let minDist = Infinity;
+                for (let f of targetFoods) {
+                    let dist = Math.abs(f.x - head.x) + Math.abs(f.y - head.y); // Manhattan distance
+                    if (dist < minDist) { minDist = dist; closest = f; }
+                }
+
+                // Pick the safe direction that gets us closest to the targeted food
+                let minFutureDist = Infinity;
+                for (let d of safeDirs) {
+                    let nx = head.x + d.x;
+                    let ny = head.y + d.y;
+                    let dist = Math.abs(closest.x - nx) + Math.abs(closest.y - ny);
+                    if (dist < minFutureDist) {
+                        minFutureDist = dist;
+                        bestDir = d;
+                    }
+                }
+            } else {
+                // No food: Keep going straight if safe
+                let straightSafe = safeDirs.find(d => d.x === currentDir.x && d.y === currentDir.y);
+                if (straightSafe) {
+                    bestDir = straightSafe;
+                } else {
+                    // Forced turn: Turn towards the center of the screen
+                    let centerX = Math.floor(cols / 2);
+                    let centerY = Math.floor(rows / 2);
+                    let minFutureDist = Infinity;
+                    for (let d of safeDirs) {
+                        let nx = head.x + d.x;
+                        let ny = head.y + d.y;
+                        let dist = Math.abs(centerX - nx) + Math.abs(centerY - ny);
+                        if (dist < minFutureDist) {
+                            minFutureDist = dist;
+                            bestDir = d;
+                        }
+                    }
+                }
+            }
+
+            currentDir = bestDir;
+            return { x: head.x + currentDir.x, y: head.y + currentDir.y };
+        }
+
+        function triggerEscape() {
+            // Poof effect for all current ducks
+            for (let i = 0; i < duckTrain.length; i++) {
+                spawnParticles(duckTrain[i].x * tileSize, duckTrain[i].y * tileSize, '💨');
+            }
+            
+            // Reset to left side
+            duckTrain = [
+                { x: 0, y: Math.floor(rows / 2), dir: { x: 1, y: 0 } },
+                { x: -1, y: Math.floor(rows / 2), dir: { x: 1, y: 0 } }
+            ];
+            currentDir = { x: 1, y: 0 };
+            reversalHistory = [];
+            
+            bubbles.push({
+                px: 1 * tileSize + tileSize / 2,
+                py: Math.floor(rows / 2) * tileSize,
+                text: "Magic teleport!",
+                life: 0,
+                maxLife: 4.0
+            });
+        }
+
+        function gameTick() {
+            if (gameState === 'idle') return;
+
+            if (gameState === 'finishing') {
+                // Check if all targeted foods are eaten
+                let targetFoods = foods.filter(f => f.targetable);
+                if (targetFoods.length === 0) {
+                    gameState = 'leaving';
+                    document.getElementById('statusBadge').innerText = 'Idle';
+                    document.getElementById('statusBadge').className = 'bg-gray-500 text-xs px-2 py-1 rounded-full';
+                }
+            }
+
+            totalTicks++;
+            let head = duckTrain[0];
+            let nextPos;
+
+            if (gameState === 'leaving') {
+                // Drive off the right side of the screen
+                currentDir = { x: 1, y: 0 };
+                nextPos = { x: head.x + 1, y: head.y };
+                if (duckTrain[duckTrain.length - 1].x > cols + 2) {
+                    gameState = 'idle';
+                    duckTrain = [];
+                    return;
+                }
+            } else {
+                nextPos = getNextMove(head);
+
+                if (nextPos.reverseTrain) {
+                    reversalHistory.push(totalTicks);
+                    if (reversalHistory.length > 3) reversalHistory.shift();
+
+                    // Check if trapped in a rapid reversal loop (3 reversals in 30 ticks)
+                    let isLooping = (reversalHistory.length === 3 && (totalTicks - reversalHistory[0] < 30));
+
+                    if (isLooping) {
+                        triggerEscape();
+                        return; // Skip the rest of this tick
+                    }
+
+                    // --- Teleport Visuals: Old Leader Poofs ---
+                    let oldHead = duckTrain[0];
+                    spawnParticles(oldHead.x * tileSize, oldHead.y * tileSize, '💨');
+
+                    // Reverse the array history to swap head and tail
+                    duckTrain.reverse();
+                    
+                    // Re-calculate the directions for proper rendering and movement
+                    for (let i = 0; i < duckTrain.length - 1; i++) {
+                        let dx = Math.sign(duckTrain[i].x - duckTrain[i+1].x);
+                        let dy = Math.sign(duckTrain[i].y - duckTrain[i+1].y);
+                        if (dx === 0 && dy === 0) {
+                            duckTrain[i].dir = { x: -currentDir.x, y: -currentDir.y }; // fallback if stacked
+                        } else {
+                            duckTrain[i].dir = { x: dx, y: dy };
+                        }
+                    }
+                    if (duckTrain.length > 1) {
+                        // Tail copies the direction of the segment in front of it
+                        duckTrain[duckTrain.length - 1].dir = { ...duckTrain[duckTrain.length - 2].dir };
+                    }
+                    
+                    // Update variables to track the newly assigned head
+                    head = duckTrain[0];
+                    currentDir = duckTrain[0].dir;
+                    
+                    // --- Teleport Visuals: New Leader Appears ---
+                    spawnParticles(head.x * tileSize, head.y * tileSize, '✨');
+                    bubbles.push({
+                        px: head.x * tileSize + tileSize / 2,
+                        py: head.y * tileSize,
+                        text: "Magic teleport!",
+                        life: 0,
+                        maxLife: 4.0
+                    });
+                    
+                    // Try to get a move for the new head's position
+                    nextPos = getNextMove(head);
+                    
+                    // If it is STILL completely boxed in on both sides (rare)
+                    if (nextPos.reverseTrain) {
+                        triggerEscape();
+                        return;
+                    }
+                }
+            }
+
+            // Move train (Unshift new target position to the front of history)
+            duckTrain.unshift({ x: nextPos.x, y: nextPos.y, dir: { x: currentDir.x, y: currentDir.y } });
+
+            // Check collision with food
+            for (let i = foods.length - 1; i >= 0; i--) {
+                if (foods[i].x === nextPos.x && foods[i].y === nextPos.y) {
+                    spawnParticles(foods[i].x * tileSize, foods[i].y * tileSize, '✨');
+                    foods.splice(i, 1);
+                    break;
+                }
+            }
+
+            // Enforce strict visual train length (1 leader + Hype Level followers)
+            // Array needs to be +1 longer than visual length to hold previous locations for interpolation
+            const requiredArrayLength = hypeLevel + 1;
+            while (duckTrain.length > requiredArrayLength) {
+                duckTrain.pop(); 
+            }
+
+            // Occasionally say phrases when circling with no targeted food
+            let targetFoods = foods.filter(f => f.targetable);
+            let now = Date.now();
+            
+            // ~8% chance per tick to speak, but enforces a 12-second cooldown so they don't overlap
+            if (targetFoods.length === 0 && gameState === 'active' && (now - lastSpeechTime > 12000) && Math.random() < 0.08) { 
+                lastSpeechTime = now;
+                const phrase = Math.random() < 0.5 ? "choo choo!" : "squeak squeak!";
+                
+                bubbles.push({
+                    px: head.x * tileSize + tileSize / 2,
+                    py: head.y * tileSize, // spawn near the top of the duck
+                    text: phrase,
+                    life: 0,
+                    maxLife: 6.0 // Stay on screen even longer
+                });
+            }
+        }
+
+        function drawEmoji(emoji, x, y, size) {
+            ctx.font = `${size}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            // Slight shadow for overlay visibility over gameplay
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+            ctx.shadowBlur = 4;
+            ctx.fillText(emoji, x * tileSize + tileSize/2, y * tileSize + tileSize/2);
+            ctx.shadowBlur = 0; // reset
+        }
+
+        function drawRubberDuck(ctx, x, y, size, dirX, dirY, isLeader) {
+            ctx.save();
+            ctx.translate(x, y);
+
+            // Rotation and Mirroring based on movement direction
+            let angle = 0;
+            let flipX = 1;
+            
+            if (dirX === 1) {
+                angle = 0; // right
+            } else if (dirX === -1) {
+                flipX = -1; // mirror to face left, preventing upside-down duck
+            } else if (dirY === 1) {
+                angle = Math.PI / 2; // down
+            } else if (dirY === -1) {
+                angle = -Math.PI / 2; // up
+            }
+            ctx.rotate(angle);
+
+            const scale = size / 60; // 60 is the base unit scale of our duck
+            ctx.scale(scale * flipX, scale);
+
+            const bodyColor = isLeader ? '#FFE135' : '#FFD700'; 
+            const beakColor = '#FF8C00';
+
+            // Slight shadow beneath the duck
+            ctx.shadowColor = 'rgba(0,0,0,0.3)';
+            ctx.shadowBlur = 8;
+            ctx.shadowOffsetY = 4;
+
+            // --- Body ---
+            ctx.fillStyle = bodyColor;
+            ctx.beginPath();
+            ctx.moveTo(-25, -5);
+            ctx.lineTo(-35, -15); // Tip of tail
+            ctx.lineTo(-30, 5);
+            ctx.quadraticCurveTo(-15, 20, 10, 20); // Bottom curve
+            ctx.quadraticCurveTo(25, 20, 25, 5); // Chest curve
+            ctx.fill();
+
+            // Turn off shadow for interior details
+            ctx.shadowColor = 'transparent';
+
+            // --- Head ---
+            ctx.beginPath();
+            ctx.arc(12, -12, 14, 0, Math.PI * 2);
+            ctx.fill();
+
+            // --- Beak ---
+            ctx.fillStyle = beakColor;
+            ctx.beginPath();
+            ctx.moveTo(24, -15);
+            ctx.lineTo(38, -10);
+            ctx.lineTo(24, -5);
+            ctx.fill();
+            
+            // --- Wing ---
+            ctx.fillStyle = isLeader ? '#FFD700' : '#FFC300';
+            ctx.beginPath();
+            ctx.ellipse(-5, 5, 12, 6, -Math.PI/8, 0, Math.PI*2);
+            ctx.fill();
+
+            // --- Eye ---
+            ctx.fillStyle = '#000';
+            ctx.beginPath();
+            ctx.arc(16, -16, 2.5, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Eye Sparkle
+            ctx.fillStyle = '#FFF';
+            ctx.beginPath();
+            ctx.arc(17, -17, 1, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        function render(time) {
+            // First frame initialization
+            if (lastTick === 0) lastTick = time;
+
+            // Logic Update based on Tick Rate
+            let elapsed = time - lastTick;
+            if (elapsed >= tickRate) {
+                gameTick();
+                lastTick = time;
+                elapsed = 0;
+            }
+
+            // Calculate progress (0.0 to 1.0) for smooth visual interpolation between grids
+            let progress = elapsed / tickRate;
+
+            // Clear Canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const now = Date.now();
+            const foodLifetimeMs = 5 * 60 * 1000; // 5 minutes in milliseconds
+
+            // Draw and Manage Food
+            for (let i = foods.length - 1; i >= 0; i--) {
+                let f = foods[i];
+                
+                // Remove if older than 5 minutes
+                if (now - f.spawnTime > foodLifetimeMs) {
+                    spawnParticles(f.x * tileSize, f.y * tileSize, '💨'); // Poof effect
+                    foods.splice(i, 1);
+                    continue;
+                }
+
+                f.life += 0.02; // Slower, gentler animation cycle
+                // Add a very subtle floating animation offset
+                const yOffset = Math.sin(f.life) * 0.08; 
+                drawEmoji(ASSETS[f.type], f.x, f.y + yOffset, tileSize * 0.8);
+            }
+
+            // Draw Train (Backwards so head is drawn on top)
+            for (let i = duckTrain.length - 2; i >= 0; i--) {
+                const isHead = (i === 0);
+                const target = duckTrain[i];
+                const start = duckTrain[i+1];
+                
+                // Interpolate exact position
+                const x = start.x + (target.x - start.x) * progress;
+                const y = start.y + (target.y - start.y) * progress;
+
+                const size = isHead ? tileSize * 1.0 : tileSize * 0.8;
+                
+                drawRubberDuck(
+                    ctx, 
+                    x * tileSize + tileSize/2, 
+                    y * tileSize + tileSize/2, 
+                    size, 
+                    target.dir.x, 
+                    target.dir.y, 
+                    isHead
+                );
+            }
+
+            // Draw Particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                let p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.life -= 0.02;
+                
+                ctx.globalAlpha = Math.max(0, p.life);
+                ctx.font = `${tileSize * 0.5}px Arial`;
+                ctx.fillText(p.emoji, p.x, p.y);
+                ctx.globalAlpha = 1.0;
+
+                if (p.life <= 0) particles.splice(i, 1);
+            }
+
+            // Draw Speech Bubbles
+            for (let i = bubbles.length - 1; i >= 0; i--) {
+                let b = bubbles[i];
+                b.life += 0.008; // Much slower decay rate so it stays longer (was 0.015)
+                if (b.life > b.maxLife) {
+                    bubbles.splice(i, 1);
+                    continue;
+                }
+
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, 1.0 - (b.life / b.maxLife)); // Fade out over time
+                
+                let currentPy = b.py - (b.life * 8); // Float upwards slower so it stays close to the duck (was 15)
+                let scale = b.scale || 1.0;
+                let fontSize = 14 * scale;
+
+                ctx.font = `bold ${fontSize}px "Segoe UI", Arial, sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'bottom';
+                
+                let textMetrics = ctx.measureText(b.text);
+                let w = textMetrics.width + (16 * scale);
+                let h = 24 * scale;
+
+                // Draw Bubble Background
+                ctx.fillStyle = '#ffffff';
+                ctx.shadowColor = 'rgba(0,0,0,0.2)';
+                ctx.shadowBlur = 4 * scale;
+                ctx.shadowOffsetY = 2 * scale;
+                
+                ctx.beginPath();
+                ctx.roundRect(b.px - w/2, currentPy - h, w, h, 12 * scale);
+                ctx.fill();
+
+                // Speech pointer (tail)
+                ctx.beginPath();
+                ctx.moveTo(b.px - (6 * scale), currentPy);
+                ctx.lineTo(b.px, currentPy + (6 * scale));
+                ctx.lineTo(b.px + (6 * scale), currentPy);
+                ctx.fill();
+
+                // Draw Text
+                ctx.shadowColor = 'transparent';
+                ctx.fillStyle = '#333333';
+                ctx.fillText(b.text, b.px, currentPy - (5 * scale));
+
+                ctx.restore();
+            }
+
+            requestAnimationFrame(render);
+        }
+
+        // Start Loop
+        requestAnimationFrame(render);
+
+
+        /** ==========================================
+         * TWITCH AUTH & API INTEGRATION 
+         * ========================================== */
+        
+        function hideControls() {
+            document.getElementById('controlPanel').classList.add('hidden-panel');
+            document.body.classList.add('obs-mode');
+        }
+
+        // 1. Implicit Grant Auth Flow
+        function authenticateTwitch() {
+            const clientId = document.getElementById('clientIdInput').value;
+            if (!clientId) {
+                alert("Please enter a Client ID first.");
+                return;
+            }
+            
+            // Redirect URL should be the current URL without hashes
+            const redirectUri = window.location.origin + window.location.pathname;
+            const scopes = 'channel:read:hype_train bits:read channel:read:subscriptions';
+            
+            const authUrl = `https://id.twitch.tv/oauth2/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=${encodeURIComponent(scopes)}`;
+            
+            // Redirect the user to Twitch
+            window.location.href = authUrl;
+        }
+
+        // 2. Check for token on load
+        function checkTwitchAuth() {
+            const hash = window.location.hash;
+            if (hash && hash.includes('access_token')) {
+                const params = new URLSearchParams(hash.substring(1));
+                const token = params.get('access_token');
+                
+                // Clear the hash so the token isn't visible on stream
+                window.history.replaceState(null, null, window.location.pathname);
+                
+                if (token) {
+                    document.getElementById('statusBadge').innerText = 'Twitch Connected';
+                    document.getElementById('statusBadge').className = 'bg-green-500 text-xs px-2 py-1 rounded-full';
+                    document.getElementById('clientIdInput').value = 'Authenticated!';
+                    document.getElementById('clientIdInput').disabled = true;
+                    
+                    // In a full production version, you would call setupEventSub(token) here.
+                    console.log("Token retrieved successfully. Ready to connect to EventSub.");
+                }
+            }
+        }
+
+        // 3. (Boilerplate) Connect to Twitch EventSub WebSockets
+        // Note: For GitHub Pages, you connect to the WebSocket, get a Session ID, 
+        // and then POST to the Twitch API to subscribe to the events using that Session ID.
+        /*
+        let websocket;
+        function setupEventSub(token, clientId, broadcasterId) {
+            websocket = new WebSocket('wss://eventsub.wss.twitch.tv/websockets');
+            
+            websocket.onmessage = (event) => {
+                const message = JSON.parse(event.data);
+                
+                // 1. Handle Welcome Message & Subscription Request
+                if (message.metadata.message_type === 'session_welcome') {
+                    const sessionId = message.payload.session.id;
+                    // TODO: Make fetch() POST to 'https://api.twitch.tv/helix/eventsub/subscriptions'
+                    // Subscribe to 'channel.hype_train.begin', 'channel.hype_train.progress', etc.
+                }
+                
+                // 2. Handle Event Notifications
+                if (message.metadata.message_type === 'notification') {
+                    const type = message.payload.subscription.type;
+                    
+                    if (type === 'channel.hype_train.begin') startHypeTrain();
+                    if (type === 'channel.hype_train.progress') {
+                        let newLevel = message.payload.event.level;
+                        if (newLevel > hypeLevel) levelUpTrain();
+                    }
+                    if (type === 'channel.hype_train.end') endHypeTrain();
+                    
+                    if (type === 'channel.cheer') spawnFood('bits');
+                    if (type === 'channel.subscribe') spawnFood('sub');
+                    if (type === 'channel.subscription.gift') spawnFood('gift');
+                }
+            };
+        }
+        */
+
+        // Run auth check on initialization
+        checkTwitchAuth();
+
+        // Check URL param if we should automatically hide controls (useful for OBS)
+        if (window.location.search.includes('obs=true')) {
+            hideControls();
+        }
+
+    </script>
+</body>
+</html>
