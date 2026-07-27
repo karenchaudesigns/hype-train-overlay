@@ -718,7 +718,7 @@
             
             // Redirect URL should be the current URL without hashes
             const redirectUri = window.location.origin + window.location.pathname;
-            const scopes = 'channel:read:hype_train bits:read channel:read:subscriptions';
+            const scopes = 'channel:read:hype_train bits:read channel:read:subscriptions user:read:chat';
             
             const authUrl = `https://id.twitch.tv/oauth2/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=${encodeURIComponent(scopes)}`;
             
@@ -768,10 +768,16 @@
                         'channel.hype_train.end',
                         'channel.cheer',
                         'channel.subscribe',
-                        'channel.subscription.gift'
+                        'channel.subscription.gift',
+                        'channel.chat.message'
                     ];
 
                     eventTypes.forEach(type => {
+                        let condition = { broadcaster_user_id: broadcasterId };
+                        if (type === 'channel.chat.message') {
+                            condition.user_id = broadcasterId;
+                        }
+
                         fetch('https://api.twitch.tv/helix/eventsub/subscriptions', {
                             method: 'POST',
                             headers: {
@@ -782,9 +788,7 @@
                             body: JSON.stringify({
                                 type: type,
                                 version: '1',
-                                condition: {
-                                    broadcaster_user_id: broadcasterId
-                                },
+                                condition: condition,
                                 transport: {
                                     method: 'websocket',
                                     session_id: sessionId
@@ -810,6 +814,20 @@
                     if (type === 'channel.cheer') spawnFood('bits');
                     if (type === 'channel.subscribe') spawnFood('sub');
                     if (type === 'channel.subscription.gift') spawnFood('gift');
+
+                    if (type === 'channel.chat.message') {
+                        const event = message.payload.event;
+                        // Only allow the broadcaster to trigger these commands
+                        if (event.chatter_user_id === event.broadcaster_user_id) {
+                            const text = event.message.text.trim();
+                            if (text === '!hype bits') spawnFood('bits');
+                            else if (text === '!hype sub') spawnFood('sub');
+                            else if (text === '!hype giftsub') spawnFood('gift');
+                            else if (text === '!hypetrain start') startHypeTrain();
+                            else if (text === '!hypetrain ++') levelUpTrain();
+                            else if (text === '!hypetrain end') endHypeTrain();
+                        }
+                    }
                 }
             };
         }

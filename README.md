@@ -20,3 +20,12 @@ You are free to use, share, and adapt my custom assets for your own stream, but 
 4. Update any file paths in the code to point to your new image names.
 
 Have fun building your own setup, and I can't wait to see what custom characters you add!
+
+## Chat Commands
+The overlay supports chat commands for the broadcaster to manually trigger events. Only the broadcaster can use these.
+* `!hype bits` - Spawns a bit
+* `!hype sub` - Spawns a sub
+* `!hype giftsub` - Spawns a gift sub
+* `!hypetrain start` - Starts the hype train
+* `!hypetrain ++` - Levels up the hype train
+* `!hypetrain end` - Ends the hype train
