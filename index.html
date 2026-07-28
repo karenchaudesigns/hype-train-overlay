@@ -837,7 +837,7 @@
 
                     client.on('message', (channel, tags, message, self) => {
                         // Only allow the broadcaster to trigger these commands
-                        if (tags['user-id'] === broadcasterId) {
+                        if (tags['user-id'] === broadcasterId || tags['username'] === 'karenchaudesigns') {
                             const text = message.trim();
                             if (text === '!hype bits') spawnFood('bits');
                             else if (text === '!hype sub') spawnFood('sub');
