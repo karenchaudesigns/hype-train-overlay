@@ -29,3 +29,4 @@ The overlay supports chat commands for the broadcaster to manually trigger event
 * `!hypetrain start` - Starts the hype train
 * `!hypetrain ++` - Levels up the hype train
 * `!hypetrain end` - Ends the hype train
+* `!hypeborder` - Toggles the visibility of the active area border
