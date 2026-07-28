@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Duck Hype Train Overlay</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="tmi.min.js"></script>
     <style>
         body, html {
             margin: 0;
@@ -768,15 +769,11 @@
                         'channel.hype_train.end',
                         'channel.cheer',
                         'channel.subscribe',
-                        'channel.subscription.gift',
-                        'channel.chat.message'
+                        'channel.subscription.gift'
                     ];
 
                     eventTypes.forEach(type => {
                         let condition = { broadcaster_user_id: broadcasterId };
-                        if (type === 'channel.chat.message') {
-                            condition.user_id = broadcasterId;
-                        }
 
                         fetch('https://api.twitch.tv/helix/eventsub/subscriptions', {
                             method: 'POST',
@@ -814,12 +811,34 @@
                     if (type === 'channel.cheer') spawnFood('bits');
                     if (type === 'channel.subscribe') spawnFood('sub');
                     if (type === 'channel.subscription.gift') spawnFood('gift');
+                }
+            };
+        }
 
-                    if (type === 'channel.chat.message') {
-                        const event = message.payload.event;
+        function setupTmi(token, clientId, broadcasterId) {
+            // First, get the broadcaster's channel name (login) from the Helix API
+            fetch(`https://api.twitch.tv/helix/users?id=${broadcasterId}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Client-Id': clientId
+                }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.data && data.data.length > 0) {
+                    const channelName = data.data[0].login;
+                    console.log("Setting up TMI for channel:", channelName);
+
+                    const client = new tmi.Client({
+                        channels: [ channelName ]
+                    });
+
+                    client.connect();
+
+                    client.on('message', (channel, tags, message, self) => {
                         // Only allow the broadcaster to trigger these commands
-                        if (event.chatter_user_id === event.broadcaster_user_id) {
-                            const text = event.message.text.trim();
+                        if (tags['user-id'] === broadcasterId) {
+                            const text = message.trim();
                             if (text === '!hype bits') spawnFood('bits');
                             else if (text === '!hype sub') spawnFood('sub');
                             else if (text === '!hype giftsub') spawnFood('gift');
@@ -827,9 +846,10 @@
                             else if (text === '!hypetrain ++') levelUpTrain();
                             else if (text === '!hypetrain end') endHypeTrain();
                         }
-                    }
+                    });
                 }
-            };
+            })
+            .catch(err => console.error("Error fetching user data for TMI", err));
         }
 
         // Run auth check on initialization
@@ -842,6 +862,7 @@
 
         if (urlToken && urlClientId && urlBroadcasterId) {
             setupEventSub(urlToken, urlClientId, urlBroadcasterId);
+            setupTmi(urlToken, urlClientId, urlBroadcasterId);
         }
 
         // Check URL param if we should automatically hide controls (useful for OBS)
