@@ -43,6 +43,7 @@
             left: 0;
             z-index: 10;
             pointer-events: none; /* Let clicks pass through to underneath layers */
+            filter: drop-shadow(2px 4px 6px rgba(0, 0, 0, 0.5));
         }
 
         #controlPanel {
@@ -529,11 +530,7 @@
             ctx.font = `${size}px Arial`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            // Slight shadow for overlay visibility over gameplay
-            ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
-            ctx.shadowBlur = 4;
             ctx.fillText(emoji, x * tileSize + tileSize/2, y * tileSize + tileSize/2);
-            ctx.shadowBlur = 0; // reset
         }
 
         function drawRubberDuck(ctx, x, y, size, dirX, dirY, isLeader) {
@@ -561,11 +558,6 @@
             const bodyColor = isLeader ? '#FFE135' : '#FFD700'; 
             const beakColor = '#FF8C00';
 
-            // Slight shadow beneath the duck
-            ctx.shadowColor = 'rgba(0,0,0,0.3)';
-            ctx.shadowBlur = 8;
-            ctx.shadowOffsetY = 4;
-
             // --- Body ---
             ctx.fillStyle = bodyColor;
             ctx.beginPath();
@@ -575,9 +567,6 @@
             ctx.quadraticCurveTo(-15, 20, 10, 20); // Bottom curve
             ctx.quadraticCurveTo(25, 20, 25, 5); // Chest curve
             ctx.fill();
-
-            // Turn off shadow for interior details
-            ctx.shadowColor = 'transparent';
 
             // --- Head ---
             ctx.beginPath();
@@ -715,9 +704,6 @@
 
                 // Draw Bubble Background
                 ctx.fillStyle = '#ffffff';
-                ctx.shadowColor = 'rgba(0,0,0,0.2)';
-                ctx.shadowBlur = 4 * scale;
-                ctx.shadowOffsetY = 2 * scale;
                 
                 ctx.beginPath();
                 ctx.roundRect(b.px - w/2, currentPy - h, w, h, 12 * scale);
@@ -731,7 +717,6 @@
                 ctx.fill();
 
                 // Draw Text
-                ctx.shadowColor = 'transparent';
                 ctx.fillStyle = '#333333';
                 ctx.fillText(b.text, b.px, currentPy - (5 * scale));
 
