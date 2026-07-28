@@ -1,5 +1,0 @@
-127.0.0.1 - - [15/Jul/2026 06:40:16] "GET /index.html?obs=true&test=true HTTP/1.1" 200 -
-127.0.0.1 - - [15/Jul/2026 06:41:39] "GET /index.html?obs=true&test=true HTTP/1.1" 200 -
-127.0.0.1 - - [15/Jul/2026 06:41:41] "GET /index.html?obs=true HTTP/1.1" 200 -
-127.0.0.1 - - [15/Jul/2026 07:10:12] "GET /index.html?obs=true HTTP/1.1" 200 -
-127.0.0.1 - - [15/Jul/2026 07:10:14] "GET /index.html?obs=true&test=true HTTP/1.1" 200 -
