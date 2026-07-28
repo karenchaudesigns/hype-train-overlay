@@ -24,6 +24,19 @@
             background-size: 20px 20px;
         }
 
+        body.show-border::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: 10px solid white;
+            box-sizing: border-box;
+            pointer-events: none;
+            z-index: 100;
+        }
+
         #gameCanvas {
             position: absolute;
             top: 0;
@@ -709,6 +722,10 @@
             document.body.classList.add('obs-mode');
         }
 
+        function toggleBorder() {
+            document.body.classList.toggle('show-border');
+        }
+
         // 1. Implicit Grant Auth Flow
         function authenticateTwitch() {
             const clientId = document.getElementById('clientIdInput').value;
@@ -845,6 +862,7 @@
                             else if (text === '!hypetrain start') startHypeTrain();
                             else if (text === '!hypetrain ++') levelUpTrain();
                             else if (text === '!hypetrain end') endHypeTrain();
+                            else if (text === '!hypeborder') toggleBorder();
                         }
                     });
                 }
