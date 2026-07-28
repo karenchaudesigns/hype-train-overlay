@@ -246,6 +246,38 @@
             }
         }
 
+        function scatterFoods() {
+            for (let f of foods) {
+                // Poof at old location
+                spawnParticles(f.x * tileSize, f.y * tileSize, '💨');
+
+                let x, y;
+                let isOccupied = true;
+                let attempts = 0;
+                const maxAttempts = 50; // Prevent infinite loops if screen is completely full
+
+                // Find an unoccupied grid spot for the food
+                while (isOccupied && attempts < maxAttempts) {
+                    // Ensure food doesn't spawn on the edges
+                    x = Math.floor(Math.random() * (cols - 4)) + 2;
+                    y = Math.floor(Math.random() * (rows - 4)) + 2;
+
+                    // Check if another food item or a duck is already at these coordinates
+                    let foodOccupied = foods.some(otherF => otherF !== f && otherF.x === x && otherF.y === y);
+                    let duckOccupied = duckTrain.some(d => d.x === x && d.y === y);
+                    isOccupied = foodOccupied || duckOccupied;
+
+                    attempts++;
+                }
+
+                if (!isOccupied) {
+                    f.x = x;
+                    f.y = y;
+                    spawnParticles(f.x * tileSize, f.y * tileSize, '✨');
+                }
+            }
+        }
+
         function spawnParticles(x, y, emoji) {
             for(let i=0; i<5; i++) {
                 particles.push({
@@ -863,6 +895,7 @@
                             else if (text === '!hypetrain ++') levelUpTrain();
                             else if (text === '!hypetrain end') endHypeTrain();
                             else if (text === '!hypeborder') toggleBorder();
+                            else if (text === '!hypescatter') scatterFoods();
                         }
                     });
                 }

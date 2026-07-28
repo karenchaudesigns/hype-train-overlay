@@ -30,3 +30,4 @@ The overlay supports chat commands for the broadcaster to manually trigger event
 * `!hypetrain ++` - Levels up the hype train
 * `!hypetrain end` - Ends the hype train
 * `!hypeborder` - Toggles the visibility of the active area border
+* `!hypescatter` - Randomizes the placement of any currently spawned fruits (useful if spawned in awkward locations)
