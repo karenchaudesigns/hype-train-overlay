@@ -149,6 +149,8 @@
         let totalTicks = 0;
         let reversalHistory = [];
         let lastSpeechTime = 0; // Cooldown timer for speech bubbles
+        let hypeTrainTimer = 0;
+        let allAboardTriggered = false;
 
         // Directions
         let currentDir = { x: 1, y: 0 };
@@ -178,6 +180,8 @@
             totalTicks = 0;
             reversalHistory = [];
             lastSpeechTime = 0;
+            hypeTrainTimer = Date.now();
+            allAboardTriggered = false;
             
             // Make any existing foods targetable again for this new train
             foods.forEach(f => f.targetable = true);
@@ -189,6 +193,15 @@
             ];
             currentDir = { x: 1, y: 0 };
             
+            let head = duckTrain[0];
+            bubbles.push({
+                px: head.x * tileSize + tileSize / 2,
+                py: head.y * tileSize,
+                text: "The hype train is arriving at KCD station",
+                spawnTime: Date.now(),
+                scale: 2.0
+            });
+
             document.getElementById('statusBadge').innerText = 'Hype Train Active';
             document.getElementById('statusBadge').className = 'bg-green-500 text-xs px-2 py-1 rounded-full';
         }
@@ -206,9 +219,8 @@
                     px: head.x * tileSize + tileSize / 2,
                     py: head.y * tileSize, // spawn near the top of the duck
                     text: "Thanks for all the hype, chat!",
-                    life: 0,
-                    maxLife: 12.0, // Last twice as long (standard is 6.0)
-                    scale: 2.0 // Make it twice as large
+                    spawnTime: Date.now(),
+                    scale: 2.0
                 });
             }
         }
@@ -216,6 +228,16 @@
         function levelUpTrain() {
             if (gameState !== 'active') return;
             hypeLevel++;
+            hypeTrainTimer = Date.now();
+            allAboardTriggered = false;
+            let head = duckTrain[0];
+            bubbles.push({
+                px: head.x * tileSize + tileSize / 2,
+                py: head.y * tileSize,
+                text: "Hype train: Level " + hypeLevel,
+                spawnTime: Date.now(),
+                scale: 2.0
+            });
             // The tail logic handles visual growth dynamically based on hypeLevel
             spawnParticles(duckTrain[0].x * tileSize, duckTrain[0].y * tileSize, '🎉');
         }
@@ -395,8 +417,8 @@
                 px: 1 * tileSize + tileSize / 2,
                 py: Math.floor(rows / 2) * tileSize,
                 text: "Magic teleport!",
-                life: 0,
-                maxLife: 4.0
+                spawnTime: Date.now(),
+                scale: 2.0
             });
         }
 
@@ -473,8 +495,8 @@
                         px: head.x * tileSize + tileSize / 2,
                         py: head.y * tileSize,
                         text: "Magic teleport!",
-                        life: 0,
-                        maxLife: 4.0
+                        spawnTime: Date.now(),
+                        scale: 2.0
                     });
                     
                     // Try to get a move for the new head's position
@@ -511,8 +533,17 @@
             let targetFoods = foods.filter(f => f.targetable);
             let now = Date.now();
             
-            // ~8% chance per tick to speak, but enforces a 12-second cooldown so they don't overlap
-            if (targetFoods.length === 0 && gameState === 'active' && (now - lastSpeechTime > 12000) && Math.random() < 0.08) { 
+            if (gameState === 'active' && !allAboardTriggered && hypeTrainTimer > 0 && (now - hypeTrainTimer >= 150000)) {
+                allAboardTriggered = true;
+                bubbles.push({
+                    px: head.x * tileSize + tileSize / 2,
+                    py: head.y * tileSize,
+                    text: "ALLLL ABOARRRRD!!!",
+                    spawnTime: now,
+                    scale: 2.0
+                });
+            } else if (targetFoods.length === 0 && gameState === 'active' && (now - lastSpeechTime > 12000) && Math.random() < 0.08) {
+                // ~8% chance per tick to speak, but enforces a 12-second cooldown so they don't overlap
                 lastSpeechTime = now;
                 const phrase = Math.random() < 0.5 ? "choo choo!" : "squeak squeak!";
                 
@@ -520,8 +551,8 @@
                     px: head.x * tileSize + tileSize / 2,
                     py: head.y * tileSize, // spawn near the top of the duck
                     text: phrase,
-                    life: 0,
-                    maxLife: 6.0 // Stay on screen even longer
+                    spawnTime: now,
+                    scale: 2.0
                 });
             }
         }
@@ -681,17 +712,16 @@
             // Draw Speech Bubbles
             for (let i = bubbles.length - 1; i >= 0; i--) {
                 let b = bubbles[i];
-                b.life += 0.008; // Much slower decay rate so it stays longer (was 0.015)
-                if (b.life > b.maxLife) {
+                if (now - b.spawnTime > 3000) {
                     bubbles.splice(i, 1);
                     continue;
                 }
 
                 ctx.save();
-                ctx.globalAlpha = Math.max(0, 1.0 - (b.life / b.maxLife)); // Fade out over time
+                ctx.globalAlpha = 1.0; // No fade in/out
                 
-                let currentPy = b.py - (b.life * 8); // Float upwards slower so it stays close to the duck (was 15)
-                let scale = b.scale || 1.0;
+                let currentPy = b.py - ((now - b.spawnTime) / 1000 * 8); // Float upwards slightly
+                let scale = b.scale || 2.0;
                 let fontSize = 14 * scale;
 
                 ctx.font = `bold ${fontSize}px "Segoe UI", Arial, sans-serif`;
