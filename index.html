@@ -735,20 +735,24 @@
                 // Draw Bubble Background
                 ctx.fillStyle = '#ffffff';
                 
+                let padding = 10;
+                let bubbleCenterX = Math.max(w/2 + padding, Math.min(canvas.width - w/2 - padding, b.px));
+                let bubbleBottomY = Math.max(h + padding, Math.min(canvas.height - padding - (6 * scale), currentPy));
+
                 ctx.beginPath();
-                ctx.roundRect(b.px - w/2, currentPy - h, w, h, 12 * scale);
+                ctx.roundRect(bubbleCenterX - w/2, bubbleBottomY - h, w, h, 12 * scale);
                 ctx.fill();
 
                 // Speech pointer (tail)
                 ctx.beginPath();
-                ctx.moveTo(b.px - (6 * scale), currentPy);
+                ctx.moveTo(bubbleCenterX - (6 * scale), bubbleBottomY);
                 ctx.lineTo(b.px, currentPy + (6 * scale));
-                ctx.lineTo(b.px + (6 * scale), currentPy);
+                ctx.lineTo(bubbleCenterX + (6 * scale), bubbleBottomY);
                 ctx.fill();
 
                 // Draw Text
                 ctx.fillStyle = '#333333';
-                ctx.fillText(b.text, b.px, currentPy - (5 * scale));
+                ctx.fillText(b.text, bubbleCenterX, bubbleBottomY - (5 * scale));
 
                 ctx.restore();
             }
