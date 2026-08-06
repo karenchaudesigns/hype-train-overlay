@@ -787,7 +787,7 @@
             
             // Redirect URL should be the current URL without hashes
             const redirectUri = window.location.origin + window.location.pathname;
-            const scopes = 'channel:read:hype_train bits:read channel:read:subscriptions user:read:chat';
+            const scopes = 'user:read:chat';
             
             const authUrl = `https://id.twitch.tv/oauth2/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=${encodeURIComponent(scopes)}`;
             
@@ -811,76 +811,9 @@
                     document.getElementById('clientIdInput').value = 'Authenticated!';
                     document.getElementById('clientIdInput').disabled = true;
                     
-                    // In a full production version, you would call setupEventSub(token) here.
-                    console.log("Token retrieved successfully. Ready to connect to EventSub.");
+                    console.log("Token retrieved successfully. Ready to connect to TMI.");
                 }
             }
-        }
-
-        // 3. (Boilerplate) Connect to Twitch EventSub WebSockets
-        // Note: For GitHub Pages, you connect to the WebSocket, get a Session ID, 
-        // and then POST to the Twitch API to subscribe to the events using that Session ID.
-        let websocket;
-        function setupEventSub(token, clientId, broadcasterId) {
-            websocket = new WebSocket('wss://eventsub.wss.twitch.tv/websockets');
-            
-            websocket.onmessage = (event) => {
-                const message = JSON.parse(event.data);
-                
-                // 1. Handle Welcome Message & Subscription Request
-                if (message.metadata.message_type === 'session_welcome') {
-                    const sessionId = message.payload.session.id;
-
-                    const eventTypes = [
-                        'channel.hype_train.begin',
-                        'channel.hype_train.progress',
-                        'channel.hype_train.end',
-                        'channel.cheer',
-                        'channel.subscribe',
-                        'channel.subscription.gift'
-                    ];
-
-                    eventTypes.forEach(type => {
-                        let condition = { broadcaster_user_id: broadcasterId };
-
-                        fetch('https://api.twitch.tv/helix/eventsub/subscriptions', {
-                            method: 'POST',
-                            headers: {
-                                'Authorization': `Bearer ${token}`,
-                                'Client-Id': clientId,
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({
-                                type: type,
-                                version: '1',
-                                condition: condition,
-                                transport: {
-                                    method: 'websocket',
-                                    session_id: sessionId
-                                }
-                            })
-                        }).then(res => res.json())
-                          .then(data => console.log(`Subscribed to ${type}`, data))
-                          .catch(err => console.error(`Error subscribing to ${type}`, err));
-                    });
-                }
-                
-                // 2. Handle Event Notifications
-                if (message.metadata.message_type === 'notification') {
-                    const type = message.payload.subscription.type;
-                    
-                    if (type === 'channel.hype_train.begin') startHypeTrain();
-                    if (type === 'channel.hype_train.progress') {
-                        let newLevel = message.payload.event.level;
-                        if (newLevel > hypeLevel) levelUpTrain();
-                    }
-                    if (type === 'channel.hype_train.end') endHypeTrain();
-                    
-                    if (type === 'channel.cheer') spawnFood('bits');
-                    if (type === 'channel.subscribe') spawnFood('sub');
-                    if (type === 'channel.subscription.gift') spawnFood('gift');
-                }
-            };
         }
 
         function setupTmi(token, clientId, broadcasterId) {
@@ -931,7 +864,6 @@
         const urlBroadcasterId = urlParams.get('broadcasterId') || urlParams.get('broadcaster_id');
 
         if (urlToken && urlClientId && urlBroadcasterId) {
-            setupEventSub(urlToken, urlClientId, urlBroadcasterId);
             setupTmi(urlToken, urlClientId, urlBroadcasterId);
         }
 
