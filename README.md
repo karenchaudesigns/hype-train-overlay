@@ -21,6 +21,21 @@ You are free to use, share, and adapt my custom assets for your own stream, but 
 
 Have fun building your own setup, and I can't wait to see what custom characters you add!
 
+## OBS Setup Instructions
+
+To use this overlay in OBS, you need to add it as a Browser Source and provide the necessary Twitch credentials via URL parameters. Never hardcode your credentials into the files.
+
+1. Add a new **Browser Source** in OBS.
+2. Check **Local file** and browse to the `index.html` file of this repository, OR host it locally (e.g., via `python3 -m http.server 8080`) and enter the local URL.
+3. Append the required query parameters to the URL to authenticate with Twitch and enable OBS mode. The URL should look like this (if hosted locally):
+   `http://localhost:8080/?token=YOUR_TWITCH_TOKEN&clientId=YOUR_CLIENT_ID&broadcasterId=YOUR_BROADCASTER_ID&obs=true`
+   * `token`: Your Twitch Access Token (needs `user:read:chat` scope)
+   * `clientId`: Your Twitch Client ID
+   * `broadcasterId`: Your Twitch Broadcaster ID
+   * `obs=true`: Enables transparent background and hides UI controls for a clean overlay.
+4. Set the Width and Height to match your canvas (e.g., 1920x1080).
+5. Check **Refresh browser when scene becomes active**.
+
 ## Chat Commands
 The overlay supports chat commands for the broadcaster to manually trigger events. Only the broadcaster can use these.
 * `!hype bits` - Spawns a bit
