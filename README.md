@@ -37,6 +37,8 @@ To use this overlay in OBS, you need to add it as a Browser Source and provide t
 5. Check **Refresh browser when scene becomes active**.
 
 ## Chat Commands
+Note: This overlay no longer relies on Twitch events (like EventSub WebSockets) to trigger actions. Instead, it relies exclusively on chat commands handled by a locally hosted `tmi.js` client, completely independent of EventSub WebSockets.
+
 The overlay supports chat commands for the broadcaster to manually trigger events. Only the broadcaster can use these.
 * `!hype bits` - Spawns a bit
 * `!hype sub` - Spawns a sub
