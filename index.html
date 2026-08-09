@@ -113,13 +113,12 @@
         </div>
 
         <div class="mb-4">
-            <h2 class="text-sm font-bold text-gray-300 mb-2 uppercase tracking-wider">Twitch Auth (GitHub Pages)</h2>
-            <input type="text" id="clientIdInput" placeholder="Enter Twitch Client ID" class="w-full bg-gray-900 border border-gray-700 rounded p-2 mb-2 text-sm text-white focus:outline-none focus:border-purple-500">
-            <button onclick="authenticateTwitch()" class="btn btn-primary flex justify-center items-center gap-2">
+            <h2 class="text-sm font-bold text-gray-300 mb-2 uppercase tracking-wider">Twitch Connection</h2>
+            <input type="text" id="channelInput" placeholder="Enter Twitch Channel" class="w-full bg-gray-900 border border-gray-700 rounded p-2 mb-2 text-sm text-white focus:outline-none focus:border-purple-500">
+            <button onclick="connectTwitch()" class="btn btn-primary flex justify-center items-center gap-2">
                 <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714Z"/></svg>
-                Connect to Twitch
+                Connect to Chat
             </button>
-            <p class="text-xs text-gray-500 mt-1">Uses Implicit Grant flow. Safe for GitHub Pages.</p>
         </div>
 
         <button onclick="hideControls()" class="w-full text-xs text-gray-400 hover:text-white mt-2 underline">Hide Controls (OBS Mode)</button>
@@ -777,98 +776,58 @@
             document.body.classList.toggle('show-border');
         }
 
-        // 1. Implicit Grant Auth Flow
-        function authenticateTwitch() {
-            const clientId = document.getElementById('clientIdInput').value;
-            if (!clientId) {
-                alert("Please enter a Client ID first.");
+        function connectTwitch() {
+            const channel = document.getElementById('channelInput').value;
+            if (!channel) {
+                alert("Please enter a Channel name first.");
                 return;
             }
-            
-            // Redirect URL should be the current URL without hashes
-            const redirectUri = window.location.origin + window.location.pathname;
-            const scopes = 'user:read:chat';
-            
-            const authUrl = `https://id.twitch.tv/oauth2/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=${encodeURIComponent(scopes)}`;
-            
-            // Redirect the user to Twitch
-            window.location.href = authUrl;
+            setupTmi(channel);
         }
 
-        // 2. Check for token on load
-        function checkTwitchAuth() {
-            const hash = window.location.hash;
-            if (hash && hash.includes('access_token')) {
-                const params = new URLSearchParams(hash.substring(1));
-                const token = params.get('access_token');
-                
-                // Clear the hash so the token isn't visible on stream
-                window.history.replaceState(null, null, window.location.pathname);
-                
-                if (token) {
-                    document.getElementById('statusBadge').innerText = 'Twitch Connected';
-                    document.getElementById('statusBadge').className = 'bg-green-500 text-xs px-2 py-1 rounded-full';
-                    document.getElementById('clientIdInput').value = 'Authenticated!';
-                    document.getElementById('clientIdInput').disabled = true;
-                    
-                    console.log("Token retrieved successfully. Ready to connect to TMI.");
+        function setupTmi(channelName) {
+            console.log("Setting up TMI for channel:", channelName);
+
+            const client = new tmi.Client({
+                channels: [ channelName ]
+            });
+
+            client.connect().catch(console.error);
+
+            client.on('message', (channel, tags, message, self) => {
+                // Only allow the broadcaster to trigger these commands
+                const isBroadcaster = (tags.badges && tags.badges.broadcaster) || tags.username.toLowerCase() === channelName.toLowerCase() || tags.username.toLowerCase() === 'karenchaudesigns';
+                if (isBroadcaster) {
+                    const text = message.trim();
+                    if (text === '!hype bits') spawnFood('bits');
+                    else if (text === '!hype sub') spawnFood('sub');
+                    else if (text === '!hype giftsub') spawnFood('gift');
+                    else if (text === '!hypetrain start') startHypeTrain();
+                    else if (text === '!hypetrain ++') levelUpTrain();
+                    else if (text === '!hypetrain end') endHypeTrain();
+                    else if (text === '!hypeborder') toggleBorder();
+                    else if (text === '!hypescatter') scatterFoods();
                 }
+            });
+
+            document.getElementById('statusBadge').innerText = 'Twitch Connected';
+            document.getElementById('statusBadge').className = 'bg-green-500 text-xs px-2 py-1 rounded-full';
+            const channelInput = document.getElementById('channelInput');
+            if (channelInput) {
+                channelInput.value = channelName;
+                channelInput.disabled = true;
             }
         }
 
-        function setupTmi(token, clientId, broadcasterId) {
-            // First, get the broadcaster's channel name (login) from the Helix API
-            fetch(`https://api.twitch.tv/helix/users?id=${broadcasterId}`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Client-Id': clientId
-                }
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.data && data.data.length > 0) {
-                    const channelName = data.data[0].login;
-                    console.log("Setting up TMI for channel:", channelName);
-
-                    const client = new tmi.Client({
-                        channels: [ channelName ]
-                    });
-
-                    client.connect();
-
-                    client.on('message', (channel, tags, message, self) => {
-                        // Only allow the broadcaster to trigger these commands
-                        if (tags['user-id'] === broadcasterId || tags['username'] === 'karenchaudesigns') {
-                            const text = message.trim();
-                            if (text === '!hype bits') spawnFood('bits');
-                            else if (text === '!hype sub') spawnFood('sub');
-                            else if (text === '!hype giftsub') spawnFood('gift');
-                            else if (text === '!hypetrain start') startHypeTrain();
-                            else if (text === '!hypetrain ++') levelUpTrain();
-                            else if (text === '!hypetrain end') endHypeTrain();
-                            else if (text === '!hypeborder') toggleBorder();
-                            else if (text === '!hypescatter') scatterFoods();
-                        }
-                    });
-                }
-            })
-            .catch(err => console.error("Error fetching user data for TMI", err));
-        }
-
-        // Run auth check on initialization
-        checkTwitchAuth();
-
         const urlParams = new URLSearchParams(window.location.search);
-        const urlToken = urlParams.get('token');
-        const urlClientId = urlParams.get('clientId') || urlParams.get('client_id');
-        const urlBroadcasterId = urlParams.get('broadcasterId') || urlParams.get('broadcaster_id');
+        const urlChannel = urlParams.get('channel');
 
-        if (urlToken && urlClientId && urlBroadcasterId) {
-            setupTmi(urlToken, urlClientId, urlBroadcasterId);
+        if (urlChannel) {
+            setupTmi(urlChannel);
         }
 
         // Check URL param if we should automatically hide controls (useful for OBS)
-        const isObs = window.location.search.includes('obs=true') || (urlToken && urlClientId && urlBroadcasterId);
+        const isObs = window.location.search.includes('obs=true') || urlChannel !== null;
         const isTest = window.location.search.includes('test=true');
 
         if (isObs) {
