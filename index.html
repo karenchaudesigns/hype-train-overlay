@@ -265,6 +265,7 @@
                 // Fruits spawned during 'finishing' or 'leaving' are not actively targeted by the CURRENT train
                 let isTargetable = (gameState === 'idle' || gameState === 'active');
                 foods.push({ x, y, type, life: 0, spawnTime: Date.now(), targetable: isTargetable });
+                spawnParticles(x * tileSize, y * tileSize, '✨');
             }
         }
 
