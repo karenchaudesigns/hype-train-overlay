@@ -596,13 +596,16 @@
 
                 // Adjust drawing position based on visual bounds tested previously
                 // We use -drawWidth/2 + 1.5, -drawHeight/2 - 3 to center and align the image correctly
-                ctx.drawImage(duckImage, -drawWidth/2 + 1.5, -drawHeight/2 - 3, drawWidth, drawHeight);
+                // If it is the leader, add a vertical offset so it does not appear lower due to scaling
+                const yOffset = isLeader ? -8 : 0;
+
+                ctx.drawImage(duckImage, -drawWidth/2 + 1.5, -drawHeight/2 - 3 + yOffset, drawWidth, drawHeight);
 
                 if (!isLeader) {
                     // Apply a slight darkening to followers to distinguish them
                     ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
                     ctx.globalCompositeOperation = 'source-atop';
-                    ctx.fillRect(-drawWidth/2 + 1.5, -drawHeight/2 - 3, drawWidth, drawHeight);
+                    ctx.fillRect(-drawWidth/2 + 1.5, -drawHeight/2 - 3 + yOffset, drawWidth, drawHeight);
                     ctx.globalCompositeOperation = 'source-over';
                 }
             } else {
