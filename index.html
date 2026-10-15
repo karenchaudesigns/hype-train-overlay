@@ -161,6 +161,9 @@
             bits: '💎'
         };
 
+        const duckImage = new Image();
+        duckImage.src = 'assets/duck.png';
+
         function resizeCanvas() {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
@@ -586,49 +589,29 @@
             const scale = size / 60; // 60 is the base unit scale of our duck
             ctx.scale(scale * flipX, scale);
 
-            const bodyColor = isLeader ? '#FFE135' : '#FFD700'; 
-            const beakColor = '#FF8C00';
+            if (duckImage.complete && duckImage.naturalWidth > 0) {
+                const imgRatio = duckImage.naturalWidth / duckImage.naturalHeight;
+                const drawWidth = 73;
+                const drawHeight = drawWidth / imgRatio;
 
-            // --- Body ---
-            ctx.fillStyle = bodyColor;
-            ctx.beginPath();
-            ctx.moveTo(-25, -5);
-            ctx.lineTo(-35, -15); // Tip of tail
-            ctx.lineTo(-30, 5);
-            ctx.quadraticCurveTo(-15, 20, 10, 20); // Bottom curve
-            ctx.quadraticCurveTo(25, 20, 25, 5); // Chest curve
-            ctx.fill();
+                // Adjust drawing position based on visual bounds tested previously
+                // We use -drawWidth/2 + 1.5, -drawHeight/2 - 3 to center and align the image correctly
+                ctx.drawImage(duckImage, -drawWidth/2 + 1.5, -drawHeight/2 - 3, drawWidth, drawHeight);
 
-            // --- Head ---
-            ctx.beginPath();
-            ctx.arc(12, -12, 14, 0, Math.PI * 2);
-            ctx.fill();
-
-            // --- Beak ---
-            ctx.fillStyle = beakColor;
-            ctx.beginPath();
-            ctx.moveTo(24, -15);
-            ctx.lineTo(38, -10);
-            ctx.lineTo(24, -5);
-            ctx.fill();
-            
-            // --- Wing ---
-            ctx.fillStyle = isLeader ? '#FFD700' : '#FFC300';
-            ctx.beginPath();
-            ctx.ellipse(-5, 5, 12, 6, -Math.PI/8, 0, Math.PI*2);
-            ctx.fill();
-
-            // --- Eye ---
-            ctx.fillStyle = '#000';
-            ctx.beginPath();
-            ctx.arc(16, -16, 2.5, 0, Math.PI * 2);
-            ctx.fill();
-            
-            // Eye Sparkle
-            ctx.fillStyle = '#FFF';
-            ctx.beginPath();
-            ctx.arc(17, -17, 1, 0, Math.PI * 2);
-            ctx.fill();
+                if (!isLeader) {
+                    // Apply a slight darkening to followers to distinguish them
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+                    ctx.globalCompositeOperation = 'source-atop';
+                    ctx.fillRect(-drawWidth/2 + 1.5, -drawHeight/2 - 3, drawWidth, drawHeight);
+                    ctx.globalCompositeOperation = 'source-over';
+                }
+            } else {
+                // Fallback while loading
+                ctx.fillStyle = isLeader ? '#FFE135' : '#FFD700';
+                ctx.beginPath();
+                ctx.arc(0, 0, 15, 0, Math.PI * 2);
+                ctx.fill();
+            }
 
             ctx.restore();
         }
