@@ -597,7 +597,7 @@
                 // Adjust drawing position based on visual bounds tested previously
                 // We use -drawWidth/2 + 1.5, -drawHeight/2 - 3 to center and align the image correctly
                 // If it is the leader, add a vertical offset so it does not appear lower due to scaling
-                const yOffset = isLeader ? 4 : 0;
+                const yOffset = isLeader ? -4 : 0;
 
                 ctx.drawImage(duckImage, -drawWidth/2 + 1.5, -drawHeight/2 - 3 + yOffset, drawWidth, drawHeight);
 
