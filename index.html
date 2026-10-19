@@ -797,6 +797,26 @@
                 }
             });
 
+            client.on("cheer", (channel, userstate, message) => {
+                spawnFood('bits');
+            });
+
+            client.on("subscription", (channel, username, method, message, userstate) => {
+                spawnFood('sub');
+            });
+
+            client.on("resub", (channel, username, months, message, userstate, methods) => {
+                spawnFood('sub');
+            });
+
+            client.on("subgift", (channel, username, streakMonths, recipient, methods, userstate) => {
+                spawnFood('gift');
+            });
+
+            client.on("submysterygift", (channel, username, numbOfSubs, methods, userstate) => {
+                spawnFood('gift');
+            });
+
             document.getElementById('statusBadge').innerText = 'Twitch Connected';
             document.getElementById('statusBadge').className = 'bg-green-500 text-xs px-2 py-1 rounded-full';
             const channelInput = document.getElementById('channelInput');
