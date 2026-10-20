@@ -751,8 +751,79 @@
             requestAnimationFrame(render);
         }
 
+
+        // --- DRAG AND DROP FRUITS ---
+        let draggedFood = null;
+
+        function getCanvasCoordinates(e) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            let clientX = e.clientX;
+            let clientY = e.clientY;
+
+            // Handle touch events
+            if (e.touches && e.touches.length > 0) {
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
+            }
+
+            const x = (clientX - rect.left) * scaleX;
+            const y = (clientY - rect.top) * scaleY;
+            return { x, y };
+        }
+
+        function onPointerDown(e) {
+            const pos = getCanvasCoordinates(e);
+
+            // Find if a food is clicked (search backwards to pick top-most)
+            for (let i = foods.length - 1; i >= 0; i--) {
+                let f = foods[i];
+                let fx = f.x * tileSize + tileSize / 2;
+                let fy = f.y * tileSize + tileSize / 2;
+
+                let dist = Math.hypot(pos.x - fx, pos.y - fy);
+                if (dist < tileSize) { // lenient hitbox
+                    draggedFood = f;
+                    break;
+                }
+            }
+        }
+
+        function onPointerMove(e) {
+            if (draggedFood) {
+                const pos = getCanvasCoordinates(e);
+                draggedFood.x = (pos.x - tileSize / 2) / tileSize;
+                draggedFood.y = (pos.y - tileSize / 2) / tileSize;
+                // Prevent default scrolling when dragging on touch devices
+                e.preventDefault();
+            }
+        }
+
+        function onPointerUp(e) {
+            if (draggedFood) {
+                draggedFood.x = Math.round(draggedFood.x);
+                draggedFood.y = Math.round(draggedFood.y);
+                // Ensure within bounds
+                draggedFood.x = Math.max(0, Math.min(cols - 1, draggedFood.x));
+                draggedFood.y = Math.max(0, Math.min(rows - 1, draggedFood.y));
+                draggedFood = null;
+            }
+        }
+
+        canvas.addEventListener('mousedown', onPointerDown);
+        canvas.addEventListener('mousemove', onPointerMove);
+        canvas.addEventListener('mouseup', onPointerUp);
+        canvas.addEventListener('mouseleave', onPointerUp);
+
+        canvas.addEventListener('touchstart', onPointerDown, { passive: false });
+        canvas.addEventListener('touchmove', onPointerMove, { passive: false });
+        canvas.addEventListener('touchend', onPointerUp);
+        canvas.addEventListener('touchcancel', onPointerUp);
+
         // Start Loop
         requestAnimationFrame(render);
+
 
 
         /** ==========================================
@@ -848,6 +919,15 @@
                 document.getElementById('controlPanel').classList.add('hidden-panel');
             }
         }
+
+        // --- DOCK COMMUNICATION ---
+        const bc = new BroadcastChannel('hype_train');
+        bc.onmessage = (event) => {
+            if (event.data.type === 'startHypeTrain') startHypeTrain();
+            else if (event.data.type === 'levelUpTrain') levelUpTrain();
+            else if (event.data.type === 'endHypeTrain') endHypeTrain();
+            else if (event.data.type === 'spawnFood') spawnFood(event.data.foodType);
+        };
 
     </script>
 </body>
