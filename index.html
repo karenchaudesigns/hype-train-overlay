@@ -164,6 +164,9 @@
         const duckImage = new Image();
         duckImage.src = 'assets/duck.png';
 
+        const conductorDuckImage = new Image();
+        conductorDuckImage.src = 'assets/conductor_duck.png';
+
         function resizeCanvas() {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
@@ -589,8 +592,10 @@
             const scale = size / 60; // 60 is the base unit scale of our duck
             ctx.scale(scale * flipX, scale);
 
-            if (duckImage.complete && duckImage.naturalWidth > 0) {
-                const imgRatio = duckImage.naturalWidth / duckImage.naturalHeight;
+            const activeImage = isLeader ? conductorDuckImage : duckImage;
+
+            if (activeImage.complete && activeImage.naturalWidth > 0) {
+                const imgRatio = activeImage.naturalWidth / activeImage.naturalHeight;
                 const drawWidth = 73;
                 const drawHeight = drawWidth / imgRatio;
 
@@ -599,7 +604,7 @@
                 // If it is the leader, add a vertical offset so it does not appear lower due to scaling
                 const yOffset = isLeader ? -8 : 0;
 
-                ctx.drawImage(duckImage, -drawWidth/2 + 1.5, -drawHeight/2 - 3 + yOffset, drawWidth, drawHeight);
+                ctx.drawImage(activeImage, -drawWidth/2 + 1.5, -drawHeight/2 - 3 + yOffset, drawWidth, drawHeight);
 
                 if (!isLeader) {
                     // Apply a slight darkening to followers to distinguish them
