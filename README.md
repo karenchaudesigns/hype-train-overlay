@@ -21,6 +21,7 @@ You are free to use, share, and adapt my custom assets for your own stream, but 
 
 Have fun building your own setup, and I can't wait to see what custom characters you add!
 
+
 ## OBS Setup Instructions
 
 To use this overlay in OBS, you need to add it as a Browser Source and provide the necessary Twitch channel via URL parameters. Never hardcode your channel into the files.
@@ -33,6 +34,14 @@ To use this overlay in OBS, you need to add it as a Browser Source and provide t
    * `obs=true`: Enables transparent background and hides UI controls for a clean overlay.
 4. Set the Width and Height to match your canvas (e.g., 1920x1080).
 5. Check **Refresh browser when scene becomes active**.
+
+### Interaction and Browser Dock
+You can interact with the overlay in a few ways:
+* **Drag & Drop**: You can right-click the Browser Source in OBS and select **Interact**. You can then drag and drop spawned fruits around the canvas to reorganize them.
+* **Custom Browser Dock**: To control the overlay directly from your OBS UI without chat commands, add a **Custom Browser Dock** (View > Docks > Custom Browser Docks).
+  * Name: Hype Train Controls
+  * URL: `http://localhost:8080/dock.html` (or point it to the local `dock.html` file if applicable).
+  This provides a dedicated control panel that communicates seamlessly with the main overlay.
 
 ## Chat Commands
 Note: This overlay no longer relies on Twitch events (like EventSub WebSockets) to trigger actions. Instead, it relies exclusively on chat commands handled by a locally hosted `tmi.js` client, completely independent of EventSub WebSockets.

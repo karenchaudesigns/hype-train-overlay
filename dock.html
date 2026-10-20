@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hype Train Dock</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-color: #111827; /* Dark gray for OBS dock */
+            color: #ffffff;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 16px;
+        }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            cursor: pointer;
+            width: 100%;
+            margin-bottom: 0.5rem;
+        }
+        .btn-primary { background-color: #8b5cf6; color: white; }
+        .btn-primary:hover { background-color: #7c3aed; }
+        .btn-secondary { background-color: #374151; color: white; border: 1px solid #4b5563; }
+        .btn-secondary:hover { background-color: #4b5563; }
+        .btn-danger { background-color: #ef4444; color: white; }
+        .btn-danger:hover { background-color: #dc2626; }
+    </style>
+</head>
+<body>
+    <div class="mb-4 flex items-center justify-between">
+        <h1 class="text-lg font-bold flex items-center gap-2">🦆 Hype Train Controls</h1>
+    </div>
+
+    <div class="mb-4">
+        <h2 class="text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider">Hype Train</h2>
+        <button onclick="startHypeTrain()" class="btn btn-primary text-sm">🚂 Start Hype Train</button>
+        <button onclick="levelUpTrain()" class="btn btn-secondary text-sm">⬆️ Level Up (+1 Duck)</button>
+        <button onclick="endHypeTrain()" class="btn btn-danger text-sm">🛑 End Hype Train</button>
+    </div>
+
+    <div>
+        <h2 class="text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider">Spawn Items</h2>
+        <div class="grid grid-cols-2 gap-2">
+            <button onclick="spawnFood('sub')" class="btn btn-secondary text-sm m-0">⭐️ Sub</button>
+            <button onclick="spawnFood('gift')" class="btn btn-secondary text-sm m-0">🎁 Gift</button>
+            <button onclick="spawnFood('bits')" class="btn btn-secondary text-sm m-0 col-span-2">💎 Bits</button>
+        </div>
+    </div>
+
+    <script>
+        const bc = new BroadcastChannel('hype_train');
+
+        function startHypeTrain() { bc.postMessage({ type: 'startHypeTrain' }); }
+        function levelUpTrain() { bc.postMessage({ type: 'levelUpTrain' }); }
+        function endHypeTrain() { bc.postMessage({ type: 'endHypeTrain' }); }
+        function spawnFood(foodType) { bc.postMessage({ type: 'spawnFood', foodType: foodType }); }
+    </script>
+</body>
+</html>
