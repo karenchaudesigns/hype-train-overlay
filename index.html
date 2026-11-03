@@ -858,6 +858,16 @@
             client.connect().catch(console.error);
 
             client.on('message', (channel, tags, message, self) => {
+                // Handle extension bits (like Stream Stickers) and Power-ups
+                if (tags && tags.bits && parseInt(tags.bits) > 0) {
+                    spawnFood('bits');
+                } else if (tags && tags['msg-id']) {
+                    const msgId = tags['msg-id'];
+                    if (msgId === 'extension-bits-in-chat' || msgId === 'animated-message' || msgId === 'gigantified-emote-message') {
+                        spawnFood('bits');
+                    }
+                }
+
                 // Only allow the broadcaster to trigger these commands
                 const isBroadcaster = (tags.badges && tags.badges.broadcaster) || tags.username.toLowerCase() === channelName.toLowerCase() || tags.username.toLowerCase() === 'karenchaudesigns';
                 if (isBroadcaster) {
