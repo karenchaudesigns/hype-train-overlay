@@ -899,10 +899,6 @@
                 spawnFood('gift');
             });
 
-            client.on("submysterygift", (channel, username, numbOfSubs, methods, userstate) => {
-                spawnFood('gift');
-            });
-
             document.getElementById('statusBadge').innerText = 'Twitch Connected';
             document.getElementById('statusBadge').className = 'bg-green-500 text-xs px-2 py-1 rounded-full';
             const channelInput = document.getElementById('channelInput');
